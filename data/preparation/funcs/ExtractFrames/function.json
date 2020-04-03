@@ -2,18 +2,9 @@
   "scriptFile": "__init__.py",
   "bindings": [
     {
-      "name": "blobin",
-      "type": "blobTrigger",
-      "direction": "in",
-      "path": "rawdata/{name}.mp4",
-      "connection": "stovedatastorage_STORAGE"
-    },
-    {
-      "name": "blobout",
-      "type": "blob",
-      "direction": "out",
-      "path": "extractedframes/{name}.zip",
-      "connection": "stovedatastorage_STORAGE"
+      "type": "eventGridTrigger",
+      "name": "event",
+      "direction": "in"
     }
   ]
 }
