@@ -2,6 +2,18 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python: CVAT to Dataset",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/data/preparation/tools/cvat_to_dataset.py",
+      "args": [
+        "--clips", "${input:dataFolder}/Frames",
+        "--labels", "${input:dataFolder}/Labels",
+        "--output", "${input:dataFolder}/Datasets"
+      ],
+      "console": "integratedTerminal"
+    },
+    {
       "name": "CameraCapture Remote Debug (Python)",
       "type": "python",
       "request": "attach",
@@ -23,6 +35,13 @@
           }
         ]
       }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "dataFolder",
+      "type": "promptString",
+      "description": "Folder with frames/labels/datasets files"
     }
   ]
 }
