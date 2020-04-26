@@ -2,14 +2,31 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Python: Dataset to Cognitive",
+      "type": "python",
+      "request": "launch",
+      "program": "dataset_to_cognitive.py",
+      "cwd": "${workspaceFolder}/data/preparation/cognitive",
+      "args": [
+        "--dataset",
+        "${input:datasetPath}"
+      ],
+      "preLaunchTask": "pipInstall cognitive",
+      "console": "integratedTerminal"
+    },
+    {
       "name": "Python: CVAT to Dataset",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/data/preparation/tools/cvat_to_dataset.py",
+      "program": "cvat_to_dataset.py",
+      "cwd": "${workspaceFolder}/data/preparation/tools",
       "args": [
-        "--clips", "${input:dataFolder}/Frames",
-        "--labels", "${input:dataFolder}/Labels",
-        "--output", "${input:dataFolder}/Datasets"
+        "--clips",
+        "${input:dataFolder}/Frames",
+        "--labels",
+        "${input:dataFolder}/Labels",
+        "--output",
+        "${input:dataFolder}/Datasets"
       ],
       "console": "integratedTerminal"
     },
@@ -42,6 +59,11 @@
       "id": "dataFolder",
       "type": "promptString",
       "description": "Folder with frames/labels/datasets files"
+    },
+    {
+      "id": "datasetPath",
+      "type": "promptString",
+      "description": ".zip file with the dataset"
     }
   ]
 }

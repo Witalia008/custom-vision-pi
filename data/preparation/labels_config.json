@@ -1,0 +1,23 @@
+{
+    "labels" : [
+        {
+            "name": "pot",
+            "attributes": [
+                {
+                    "name": "state",
+                    "type": "select",
+                    "mutable": true,
+                    "values": [
+                        "not boiling",
+                        "boiling",
+                        "?"
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "stove",
+            "attributes": []
+        }
+    ]
+}
