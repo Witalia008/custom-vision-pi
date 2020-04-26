@@ -82,6 +82,9 @@ def get_image_regions(image_labels: Dict, tags: List[Tag]) -> List[Region]:
     for label in image_labels["labels"]:
         label_name: str = label["label"]
 
+        if label_name not in tags:
+            continue
+
         # Non-box shapes are not supported by the Object Detection.
         if label["type"] != "box":
             continue

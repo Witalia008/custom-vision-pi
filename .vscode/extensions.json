@@ -14,6 +14,7 @@
     // Coding helpers
     "streetsidesoftware.code-spell-checker",
     "wayou.vscode-todo-highlight",
+    "davidanson.vscode-markdownlint",
 
     // VCS helpers
     "donjayamanne.githistory",

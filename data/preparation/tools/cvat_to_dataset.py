@@ -1,11 +1,12 @@
 import argparse
 import json
 import os
+import random
 import tempfile
 import time
 import xml.etree.ElementTree as ET
 import zipfile
-from typing import IO, Dict, List, NoReturn
+from typing import IO, Dict, List, NoReturn, Set
 
 
 def get_single_clip_labels(clip_name: str, label_path: str) -> Dict[str, object]:
@@ -42,15 +43,36 @@ def get_single_clip_labels(clip_name: str, label_path: str) -> Dict[str, object]
 
         frame_name: str = image.attrib["name"].strip()
 
-        labels_all[f"{clip_name}_{frame_name}"] = {
-            "clip": clip_name,
-            "frame": frame_name,
-            "width": int(image.attrib["width"]),
-            "height": int(image.attrib["height"]),
-            "labels": labels_image,
-        }
+        # Do not include frames without any labels on them.
+        if len(labels_image) > 0:
+            labels_all[f"{clip_name}_{frame_name}"] = {
+                "clip": clip_name,
+                "frame": frame_name,
+                "width": int(image.attrib["width"]),
+                "height": int(image.attrib["height"]),
+                "labels": labels_image,
+            }
+        else:
+            print(f"Skipped: {clip_name} - {frame_name}")
 
     return labels_all
+
+
+def filter_labels(labels: Dict[str, object], max_clip_frames: int) -> Dict[str, object]:
+    if max_clip_frames <= 0:
+        return labels
+
+    frames: Set[str] = set(labels.keys())
+
+    if len(frames) <= max_clip_frames:
+        return labels
+
+    filtered_out_frames: Set[str] = frames - set(random.sample(frames, max_clip_frames))
+
+    for frame in filtered_out_frames:
+        del labels[frame]
+
+    return labels
 
 
 def copy_labelled_frames(archive_from: str, archive_to: str, labels: Dict[str, object]) -> NoReturn:
@@ -77,12 +99,13 @@ def store_labels(archive_to: str, labels: Dict[str, object]) -> NoReturn:
             zip_to.write(labels_file.name, "labels.json")
 
 
-def process_labels_batch(clips_folder: str, labels_folder: str, output_folder: str) -> NoReturn:
+def process_labels_batch(clips_folder: str, labels_folder: str, output_folder: str, max_clip_frames: int) -> NoReturn:
     clip_batch_labels: Dict[str, object] = {}
 
     os.makedirs(output_folder, exist_ok=True)
     current_time: str = time.strftime("%Y%m%d-%H%M%S")
-    output_archive: str = os.path.join(output_folder, f"dataset-{current_time}.zip")
+    filtering_suffix: str = "" if max_clip_frames <= 0 else f"-filtered-{max_clip_frames}"
+    output_archive: str = os.path.join(output_folder, f"dataset-{current_time}{filtering_suffix}.zip")
 
     for clip_file_name in os.listdir(clips_folder):
         print(f"Processing {clip_file_name}...")
@@ -92,7 +115,12 @@ def process_labels_batch(clips_folder: str, labels_folder: str, output_folder: s
         label_path: str = os.path.join(labels_folder, f"{clip_name}.xml")
 
         current_clip_labels: Dict[str, object] = get_single_clip_labels(clip_name, label_path)
-        copy_labelled_frames(clip_path, output_archive, current_clip_labels)
+
+        # Filter out some frames, if the parameter was passed,
+        # in an effort to reduce a lot of similar frames for one clip.
+        current_clip_labels_filtered = filter_labels(current_clip_labels, max_clip_frames)
+
+        copy_labelled_frames(clip_path, output_archive, current_clip_labels_filtered)
 
         clip_batch_labels.update(current_clip_labels)
 
@@ -106,9 +134,19 @@ def main() -> NoReturn:
     parser.add_argument(
         "--output", "-o", dest="output_folder", required=False, default="output", help="Output folder location"
     )
+    parser.add_argument(
+        "--max-frames",
+        "-m",
+        dest="max_clip_frames",
+        required=False,
+        default=-1,
+        type=int,
+        help="Maximum number of frames per clip (if one has more, frames will be sampled)",
+    )
 
     args = parser.parse_args()
-    process_labels_batch(args.clips_folder, args.labels_folder, args.output_folder)
+
+    process_labels_batch(args.clips_folder, args.labels_folder, args.output_folder, args.max_clip_frames)
 
 
 if __name__ == "__main__":
