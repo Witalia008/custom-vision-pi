@@ -11,6 +11,7 @@
         "--max-line-length=120"
     ],
     "python.pythonPath": ".venv/bin/python3",
+    "todohighlight.keywordsPattern": "(TODO|FIXME) #\\d+",
     "cSpell.words": [
         "cvat"
     ]

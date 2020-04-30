@@ -9,7 +9,9 @@
       "cwd": "${workspaceFolder}/data/preparation/cognitive",
       "args": [
         "--dataset",
-        "${input:datasetPath}"
+        "${input:datasetPath}",
+        "--type",
+        "${input:customVisionProjectType}"
       ],
       "preLaunchTask": "pipInstall cognitive",
       "console": "integratedTerminal"
@@ -71,6 +73,15 @@
       "id": "datasetPath",
       "type": "promptString",
       "description": ".zip file with the dataset"
+    },
+    {
+      "id": "customVisionProjectType",
+      "type": "pickString",
+      "options": [
+        "detection",
+        "classification"
+      ],
+      "description": "Choose whether this should be object detection or classification"
     }
   ]
 }

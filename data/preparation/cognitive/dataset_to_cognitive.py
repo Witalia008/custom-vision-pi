@@ -1,176 +1,232 @@
 import argparse
+import io
 import json
-import zipfile
 import os
-from typing import Dict, NoReturn, List
-from dotenv import load_dotenv
+import zipfile
+from abc import ABC, abstractmethod
+from itertools import islice
+from typing import Callable, Dict, Generator, List, NoReturn
 
 from azure.cognitiveservices.vision.customvision.training import CustomVisionTrainingClient
-from azure.cognitiveservices.vision.customvision.training.models import (
-    ImageFileCreateEntry,
-    ImageCreateSummary,
-    Region,
-    Domain,
-    Project,
-    Tag,
-)
+from azure.cognitiveservices.vision.customvision.training.models import ImageFileCreateEntry, Project, Region, Tag
+from dotenv import load_dotenv
+from PIL import Image
 
+from custom_vision import initialize_custom_vision_project, populate_project_tags, upload_batch
 
 TRAINING_ENDPOINT_ENV_VAR_NAME = "CUSTOM_VISION_TRAINING_ENDPOINT"
 TRAINING_KEY_ENV_VAR_NAME = "CUSTOM_VISION_TRAINING_KEY"
 
-CUSTOM_VISION_PROJECT_NAME = "PotDetection"
+CUSTOM_VISION_DETECTION_PROJECT_NAME = "PotDetection"
+CUSTOM_VISION_CLASSIFICATION_PROJECT_NAME = "PotClassification"
 
 
-def get_batches(object_list: List[object], max_size: int) -> List[List[object]]:
-    batch_obj_list: List[List[object]] = []
+class AbsCustomVisionClient(ABC):
+    def __init__(self):
+        self.trainer: CustomVisionTrainingClient
+        self.project: Project
 
-    for start in range(0, len(object_list), max_size):
-        batch_obj_list.append(object_list[start : start + max_size])
+        self.training_endpoint: str = os.environ[TRAINING_ENDPOINT_ENV_VAR_NAME]
+        self.training_key: str = os.environ[TRAINING_KEY_ENV_VAR_NAME]
 
-    return batch_obj_list
+    def load_label_defs(self, labels_def_path: str) -> Dict[str, Tag]:
+        # Populate and/or Load the tags from the project to attach to the regions/images.
+        with open(labels_def_path, "r") as labels_file:
+            labels_defs: List[Dict] = json.load(labels_file)["labels"]
+            return self.populate_tags(labels_defs)
 
+    @abstractmethod
+    def populate_tags(self, labels_defs: List[Dict]) -> Dict[str, Tag]:
+        pass
 
-def initialize_custom_vision_object_detection_project() -> (CustomVisionTrainingClient, Project):
-    training_endpoint = os.environ[TRAINING_ENDPOINT_ENV_VAR_NAME]
-    training_key = os.environ[TRAINING_KEY_ENV_VAR_NAME]
+    @abstractmethod
+    def get_images_for_upload(
+        self, images: List[str], image_reader: Callable[[str], bytes], labels: Dict, tags: Dict[str, Tag]
+    ) -> Generator[ImageFileCreateEntry, None, None]:
+        pass
 
-    trainer = CustomVisionTrainingClient(training_key, endpoint=training_endpoint)
+    @staticmethod
+    def get_image_boxes_with_attributes(image_labels: Dict, allowed_tags: List[str], normalize: bool) -> List[Dict]:
+        boxes: List[Dict] = []
 
-    try:
-        # See if the project has already been created.
-        project = next(
-            project_candidate
-            for project_candidate in trainer.get_projects()
-            if project_candidate.name == CUSTOM_VISION_PROJECT_NAME
-        )
-    except StopIteration:
-        # Create a new project since existing was not found.
+        image_width, image_height = image_labels["width"], image_labels["height"]
 
-        # Find the object detection domain.
-        obj_detection_domain: Domain = next(
-            domain for domain in trainer.get_domains() if domain.type == "ObjectDetection" and domain.name == "General"
-        )
+        for label in image_labels["labels"]:
+            label_name: str = label["label"]
 
-        project = trainer.create_project(CUSTOM_VISION_PROJECT_NAME, domain_id=obj_detection_domain.id)
+            if label_name not in allowed_tags:
+                continue
 
-    return trainer, project
+            # Non-box shapes are not supported by the Object Detection.
+            if label["type"] != "box":
+                continue
 
+            # For now allow the occluded shapes.
+            # TODO #2: have some logic to allow some occluded shapes, but forbid others.
+            if label["occluded"]:
+                pass
 
-def populate_tags(trainer: CustomVisionTrainingClient, project: Project, labels_defs: List[Dict]) -> Dict[str, Tag]:
-    tags: Dict[str, Tag] = {}
+            points: Dict = label["points"]
+            box_x, box_y, box_width, box_height = points["x"], points["y"], points["width"], points["height"]
 
-    for tag in trainer.get_tags(project.id):
-        tags[tag.name] = tag
+            # TODO #1: Skip, if the box is bigger than some percentage of the image (50%, half of the image).
 
-    desired_tags: List[str] = [label["name"] for label in labels_defs]
-    # For now, start only with "pot" tag. TODO: in the future, include other tags too.
-    desired_tags = ["pot"]
+            if normalize:
+                # Normalise coordinates to [0, 1] range.
+                box_x, box_width = (box_x / image_width, box_width / image_width)
+                box_y, box_height = (box_y / image_height, box_height / image_height)
+            else:
+                # If coordinates are not normalized, then convert them to integer ones (read: pixes on the image).
+                box_x, box_y, box_width, box_height = int(box_x), int(box_y), int(box_width), int(box_height)
 
-    for label in desired_tags:
-        if label not in tags:
-            tags[label] = trainer.create_tag(project.id, label)
-
-    return tags
-
-
-def get_image_regions(image_labels: Dict, tags: List[Tag]) -> List[Region]:
-    regions: List[Region] = []
-
-    image_width, image_height = image_labels["width"], image_labels["height"]
-
-    for label in image_labels["labels"]:
-        label_name: str = label["label"]
-
-        if label_name not in tags:
-            continue
-
-        # Non-box shapes are not supported by the Object Detection.
-        if label["type"] != "box":
-            continue
-
-        # For now allow the occluded shapes. TODO: have some logic to allow some occluded shapes, but forbid others.
-        if label["occluded"]:
-            pass
-
-        box_x, box_y, box_width, box_height = (
-            label["points"]["x"],
-            label["points"]["y"],
-            label["points"]["width"],
-            label["points"]["height"],
-        )
-
-        # Normalise coordinates to [0, 1] range.
-        box_x, box_y, box_width, box_height = (
-            box_x / image_width,
-            box_y / image_height,
-            box_width / image_width,
-            box_height / image_height,
-        )
-
-        regions.append(Region(tag_id=tags[label_name].id, left=box_x, top=box_y, width=box_width, height=box_height))
-
-    return regions
-
-
-def upload_batch(
-    image_file_names: List[str],
-    image_zip_file: zipfile.ZipFile,
-    labels: Dict,
-    trainer: CustomVisionTrainingClient,
-    project: Project,
-    tags: Dict[str, Tag],
-) -> bool:
-    tagged_images_with_regions: List[ImageFileCreateEntry] = []
-
-    print("Adding a batch of images...")
-
-    for file_name in image_file_names:
-        regions = get_image_regions(labels[file_name], tags)
-
-        # We don't need pictures without any labels.
-        if len(regions) > 0:
-            tagged_images_with_regions.append(
-                ImageFileCreateEntry(name=file_name, contents=image_zip_file.read(file_name), regions=regions)
+            boxes.append(
+                {
+                    "tag": label_name,
+                    "left": box_x,
+                    "top": box_y,
+                    "width": box_width,
+                    "height": box_height,
+                    "properties": list(label["properties"].values()),
+                }
             )
 
-    # If the batch didn't end up having any images, trying to upload an empty list would throw.
-    if len(tagged_images_with_regions) > 0:
-        upload_result: ImageCreateSummary = trainer.create_images_from_files(project.id, tagged_images_with_regions)
+        return boxes
 
-        if not upload_result.is_batch_successful:
-            print("Image batch upload failed.")
-            for image in upload_result.images:
-                print(f"Image status: {image.source_url} - {image.status}")
-            return False
+    def upload_dataset(self, dataset_path: str, labels_def_path: str) -> NoReturn:
+        tags: Dict[str, Tag] = self.load_label_defs(labels_def_path)
 
-    return True
+        with zipfile.ZipFile(dataset_path, "r") as dataset_zip:
+            labels: Dict = json.loads(dataset_zip.read("labels.json"))
+
+            images: List[str] = list(labels.keys())
+
+            # Get a generator for Image objects for upload, that will lazily produce data for our batches.
+            images_for_upload: Generator[ImageFileCreateEntry] = self.get_images_for_upload(
+                images, dataset_zip.read, labels, tags
+            )
+
+            while True:
+                # Get data in batches of 64, since that's maximum for one upload to Cognitive Services.
+                image_batch = list(islice(images_for_upload, 64))
+
+                # An empty batch means we exhausted all the data to upload.
+                if not image_batch or len(image_batch) == 0:
+                    break
+
+                print("Uploading in a batch...")
+                uploaded = upload_batch(self.trainer, self.project, image_batch)
+                print(f"Batch upload status: {uploaded}")
 
 
-def upload_dataset(dataset_path: str, labels_def_path: str) -> NoReturn:
-    # Get the trainer and the project to upload images to.
-    trainer, project = initialize_custom_vision_object_detection_project()
+class ObjectDetectionClient(AbsCustomVisionClient):
+    def __init__(self):
+        super().__init__()
 
-    # Populate and/or Load the tags from the project to attach to the regions.
-    with open(labels_def_path, "r") as labels_file:
-        labels_defs: List[Dict] = json.load(labels_file)["labels"]
-        tags = populate_tags(trainer, project, labels_defs)
-        print(f"Loaded tags: {list(tags.keys())}")
+        self.trainer, self.project = initialize_custom_vision_project(
+            self.training_endpoint, self.training_key, CUSTOM_VISION_DETECTION_PROJECT_NAME, "ObjectDetection"
+        )
 
-    with zipfile.ZipFile(dataset_path, "r") as dataset_zip:
-        labels: Dict = json.loads(dataset_zip.read("labels.json"))
+    def populate_tags(self, labels_defs: List[Dict]) -> Dict[str, Tag]:
+        desired_tags: List[str] = [label["name"] for label in labels_defs]
+        # For now, start only with "pot" tag. TODO #3: in the future, include other tags too.
+        desired_tags = ["pot"]
 
-        images: List[str] = list(labels.keys())
+        return populate_project_tags(self.trainer, self.project, desired_tags)
 
-        # Split into batches of maximum 64 since that's the maximum that Cognitive Services can accept in one upload.
-        image_batches: List[List[str]] = get_batches(images, 64)
+    @staticmethod
+    def boxes_to_regions(boxes: List[Dict], tags: Dict[str, Tag]) -> List[Region]:
+        return [
+            Region(
+                tag_id=tags[box["tag"]].id, left=box["left"], top=box["top"], width=box["width"], height=box["height"]
+            )
+            for box in boxes
+        ]
 
-        for image_batch in image_batches:
-            uploaded = upload_batch(image_batch, dataset_zip, labels, trainer, project, tags)
-            print(f"Batch upload status: {uploaded}")
+    def get_images_for_upload(
+        self, images: List[str], image_reader: Callable[[str], bytes], labels: Dict, tags: Dict[str, Tag]
+    ) -> Generator[ImageFileCreateEntry, None, None]:
+
+        for file_name in images:
+            # Convert each box on the image to region with a tag for detection.
+            boxes = AbsCustomVisionClient.get_image_boxes_with_attributes(
+                labels[file_name], list(tags.keys()), normalize=True
+            )
+            regions = ObjectDetectionClient.boxes_to_regions(boxes, tags)
+
+            # We don't need pictures without any labels.
+            if len(regions) > 0:
+                yield ImageFileCreateEntry(name=file_name, contents=image_reader(file_name), regions=regions)
+                print(f"Yielding image {file_name}.")
+
+
+class ClassificationClient(AbsCustomVisionClient):
+    def __init__(self):
+        super().__init__()
+
+        self.trainer, self.project = initialize_custom_vision_project(
+            self.training_endpoint, self.training_key, CUSTOM_VISION_CLASSIFICATION_PROJECT_NAME, "Classification"
+        )
+
+    def populate_tags(self, labels_defs: List[Dict]):
+        # Populate tags from boxes' attributes, as this is for their classification.
+        desired_tags: List[str] = []
+        for label in labels_defs:
+            # For now, start only with "pot" tag. TODO #3: in the future, include other tags too.
+            if label["name"] != "pot":
+                continue
+
+            for attribute in label["attributes"]:
+                desired_tags.extend(attribute["values"])
+
+        return populate_project_tags(self.trainer, self.project, desired_tags)
+
+    @staticmethod
+    def box_to_subimage(box: Dict, image: Image) -> bytes:
+        # Extract subimage that is bounded by the box.
+
+        # Area is (left, top, right, bottom).
+        box_area = (box["left"], box["top"], box["width"] + box["left"], box["height"] + box["top"])
+        subimage = image.crop(box_area)
+
+        # Store the cut-out part back to bytes.
+        subimageArray = io.BytesIO()
+        subimage.save(subimageArray, format="PNG")
+
+        return subimageArray.getvalue()
+
+    def get_images_for_upload(
+        self, images: List[str], image_reader: Callable[[str], bytes], labels: Dict, tags: Dict[str, Tag]
+    ) -> Generator[ImageFileCreateEntry, None, None]:
+
+        for file_name in images:
+            # Tags for classification would be actually the attributes,
+            # so pass manually the filter list of hight-level tags.
+            boxes = AbsCustomVisionClient.get_image_boxes_with_attributes(labels[file_name], ["pot"], normalize=False)
+
+            # Read image to cut out parts of it later for, possibly, multiple boxes.
+            image_contents: bytes = image_reader(file_name)
+            image: Image = Image.open(io.BytesIO(image_contents))
+
+            for box_n, box in enumerate(boxes):
+                # Don't care for boxes without properties, as those cannot be classified.
+                # However, for 'pot' labels this shouldn't happen at all.
+                if len(box["properties"]) == 0:
+                    continue
+
+                # For each box, cut-out the subimage, and append tags that correspond to that box.
+                box_image: bytes = ClassificationClient.box_to_subimage(box, image)
+                box_tag_ids: List[str] = [tags[tag_name].id for tag_name in box["properties"]]
+
+                # Create image entry for each box subimage. Also, create a unique name for each of them.
+                unique_file_name: str = f"{file_name}_{box_n}"
+                yield ImageFileCreateEntry(name=unique_file_name, contents=box_image, tag_ids=box_tag_ids)
+                print(f"Yielding box-image {unique_file_name}.")
 
 
 def main():
+    CLASSIFICATION_TYPE = "classification"
+    DETECTION_TYPE = "detection"
+
     parser = argparse.ArgumentParser("Custom Vision Object Recogniser dataset uploader")
     parser.add_argument("--dataset", dest="dataset_path", required=True, help="Path to a .zip dataset folder")
     parser.add_argument(
@@ -179,12 +235,22 @@ def main():
         default="../labels_config.json",
         help="Path to a file with labels definitions",
     )
+    parser.add_argument(
+        "--type",
+        dest="project_type",
+        required=True,
+        help=f"Type of Custom Vision project ({DETECTION_TYPE}, {CLASSIFICATION_TYPE})",
+    )
 
     args = parser.parse_args()
 
     load_dotenv()
 
-    upload_dataset(args.dataset_path, args.labels_def_path)
+    # Create client either for detection or classification based on the input parameter.
+    client_dict = {DETECTION_TYPE: ObjectDetectionClient, CLASSIFICATION_TYPE: ClassificationClient}
+    client = client_dict[args.project_type]()
+
+    client.upload_dataset(args.dataset_path, args.labels_def_path)
 
 
 if __name__ == "__main__":
