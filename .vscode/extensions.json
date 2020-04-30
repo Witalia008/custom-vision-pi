@@ -1,27 +1,23 @@
 {
-  "recommendations": [
-    // Languages
-    "ms-python.python",
-
-    // Containers
-    "ms-azuretools.vscode-docker",
-
-    // Azure
-    "ms-vscode.azure-account",
-    "vsciot-vscode.azure-iot-tools",
-    "ms-azuretools.vscode-azurefunctions",
-
-    // Coding helpers
-    "streetsidesoftware.code-spell-checker",
-    "wayou.vscode-todo-highlight",
-    "davidanson.vscode-markdownlint",
-
-    // VCS helpers
-    "donjayamanne.githistory",
-    "github.vscode-pull-request-github",
-    "eamodio.gitlens",
-
-    // Development
-    "ms-vscode-remote.vscode-remote-extensionpack"
-  ]
+    "recommendations": [
+        // Languages
+        "ms-python.python",
+        // Containers
+        "ms-azuretools.vscode-docker",
+        // Azure
+        "ms-vscode.azure-account",
+        "vsciot-vscode.azure-iot-tools",
+        "ms-azuretools.vscode-azurefunctions",
+        "ms-vscode.azurecli",
+        // Coding helpers
+        "streetsidesoftware.code-spell-checker",
+        "wayou.vscode-todo-highlight",
+        "davidanson.vscode-markdownlint",
+        // VCS helpers
+        "donjayamanne.githistory",
+        "github.vscode-pull-request-github",
+        "eamodio.gitlens",
+        // Development
+        "ms-vscode-remote.vscode-remote-extensionpack"
+    ]
 }

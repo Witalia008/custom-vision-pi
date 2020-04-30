@@ -46,7 +46,7 @@ def populate_project_tags(
     # Presume that any tag called '?' is a negative case.
     for label in desired_tags:
         if label not in tags:
-            tags[label] = trainer.create_tag(project.id, label, type=('Negative' if label == '?' else 'Regular'))
+            tags[label] = trainer.create_tag(project.id, label, type=("Negative" if label == "?" else "Regular"))
 
     print(f"Loaded tags: {list(tags.keys())}")
 

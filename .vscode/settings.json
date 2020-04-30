@@ -1,18 +1,40 @@
 {
+    // Python Formatting.
     "python.formatting.provider": "black",
     "python.formatting.blackArgs": [
         "--line-length",
         "120"
     ],
+    // Python Linting.
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
         "--max-line-length=120"
     ],
+    // Python Interpreter.
     "python.pythonPath": ".venv/bin/python3",
+    // Editing.
+    "todohighlight.isEnable": true,
     "todohighlight.keywordsPattern": "(TODO|FIXME) #\\d+",
+    "editor.renderWhitespace": "all",
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": false,
+    "editor.tabSize": 4,
+    "editor.formatOnSave": true,
+    // Files
+    "files.associations": {
+        "[Dd]ockerfile*": "dockerfile",
+        "docker-compose*": "yaml"
+    },
+    // Spelling.
     "cSpell.words": [
-        "cvat"
-    ]
+        "CVAT",
+        "APPINSIGHTS",
+        "FFMPEG",
+        "dotenv",
+        "normalise",
+        "recogniser",
+        "uploader"
+    ],
 }
