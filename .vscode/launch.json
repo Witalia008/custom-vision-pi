@@ -1,28 +1,87 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "CameraCapture Remote Debug (Python)",
-      "type": "python",
-      "request": "attach",
-      "port": 5678,
-      "host": "localhost",
-      "logToFile": true,
-      "redirectOutput": true,
-      "pathMappings": [
+    "version": "0.2.0",
+    "configurations": [
         {
-          "localRoot": "${workspaceFolder}/modules/CameraCapture",
-          "remoteRoot": "/app"
+            "name": "Python: Dataset to Cognitive",
+            "type": "python",
+            "request": "launch",
+            "program": "dataset_to_cognitive.py",
+            "cwd": "${workspaceFolder}/data/preparation/cognitive",
+            "args": [
+                "--dataset",
+                "${input:datasetPath}",
+                "--type",
+                "${input:customVisionProjectType}"
+            ],
+            "preLaunchTask": "pipInstall cognitive",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: CVAT to Dataset",
+            "type": "python",
+            "request": "launch",
+            "program": "cvat_to_dataset.py",
+            "cwd": "${workspaceFolder}/data/preparation/tools",
+            "args": [
+                "--clips",
+                "${input:dataFolder}/Frames",
+                "--labels",
+                "${input:dataFolder}/Labels",
+                "--output",
+                "${input:dataFolder}/Datasets",
+                "--max-frames",
+                "${input:maxFrames}"
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "CameraCapture Remote Debug (Python)",
+            "type": "python",
+            "request": "attach",
+            "port": 5678,
+            "host": "localhost",
+            "logToFile": true,
+            "redirectOutput": true,
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/modules/CameraCapture",
+                    "remoteRoot": "/app"
+                }
+            ],
+            "windows": {
+                "pathMappings": [
+                    {
+                        "localRoot": "${workspaceFolder}\\modules\\CameraCapture",
+                        "remoteRoot": "/app"
+                    }
+                ]
+            }
         }
-      ],
-      "windows": {
-        "pathMappings": [
-          {
-            "localRoot": "${workspaceFolder}\\modules\\CameraCapture",
-            "remoteRoot": "/app"
-          }
-        ]
-      }
-    }
-  ]
+    ],
+    "inputs": [
+        {
+            "id": "dataFolder",
+            "type": "promptString",
+            "description": "Folder with frames/labels/datasets files"
+        },
+        {
+            "id": "maxFrames",
+            "type": "promptString",
+            "description": "Maximum number of frames per clip to sample"
+        },
+        {
+            "id": "datasetPath",
+            "type": "promptString",
+            "description": ".zip file with the dataset"
+        },
+        {
+            "id": "customVisionProjectType",
+            "type": "pickString",
+            "options": [
+                "detection",
+                "classification"
+            ],
+            "description": "Choose whether this should be object detection or classification"
+        }
+    ]
 }
