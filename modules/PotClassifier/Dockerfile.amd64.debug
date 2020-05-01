@@ -1,0 +1,22 @@
+﻿FROM amd64/python:3.7-slim-buster
+
+RUN apt-get update && apt-get install -y --no-install-recommends libglib2.0-bin
+
+WORKDIR /app
+
+RUN pip install --upgrade pip
+
+RUN pip install ptvsd==4.3.2
+
+COPY ./app/requirements.txt ./
+RUN pip install -r requirements.txt
+
+COPY ./app/ .
+
+# Expose the port
+EXPOSE 80
+# Expose the port for debugging.
+EXPOSE 5678
+
+# Run the flask server for the endpoints
+CMD python3 -m ptvsd --host 0.0.0.0 --port 5678 ./app.py
