@@ -85,6 +85,35 @@
                                 }
                             }
                         }
+                    },
+                    "PotDetector": {
+                        "version": "1.0",
+                        "type": "docker",
+                        "status": "running",
+                        "restartPolicy": "always",
+                        "settings": {
+                            "image": "${MODULES.PotDetector.debug}",
+                            "createOptions": {
+                                "ExposedPorts": {
+                                    "5678/tcp": {},
+                                    "80/tcp": {}
+                                },
+                                "HostConfig": {
+                                    "PortBindings": {
+                                        "5678/tcp": [
+                                            {
+                                                "HostPort": "5679"
+                                            }
+                                        ],
+                                        "80/tcp": [
+                                            {
+                                                "HostPort": "8001"
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -93,7 +122,8 @@
             "properties.desired": {
                 "schemaVersion": "1.0",
                 "routes": {
-                    "PotClassifierToIoTHub": "FROM /messages/modules/PotClassifier/outputs/* INTO $upstream"
+                    "PotClassifierToIoTHub": "FROM /messages/modules/PotClassifier/outputs/* INTO $upstream",
+                    "PotDetectorToIoTHub": "FROM /messages/modules/PotDetector/outputs/* INTO $upstream"
                 },
                 "storeAndForwardConfiguration": {
                     "timeToLiveSecs": 7200
