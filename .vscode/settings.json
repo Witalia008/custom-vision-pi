@@ -10,13 +10,14 @@
     "python.linting.pylintEnabled": false,
     "python.linting.flake8Enabled": true,
     "python.linting.flake8Args": [
-        "--max-line-length=120"
+        "--max-line-length=120",
+        "--ignore E203"
     ],
     // Python Interpreter.
     "python.pythonPath": ".venv/bin/python3",
     // Editing.
     "todohighlight.isEnable": true,
-    "todohighlight.keywordsPattern": "(TODO|FIXME) #\\d+",
+    "todohighlight.keywordsPattern": "(TODO|FIXME)( #\\d+)?:",
     "editor.renderWhitespace": "all",
     "editor.insertSpaces": true,
     "editor.detectIndentation": false,

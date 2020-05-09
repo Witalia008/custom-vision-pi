@@ -8,6 +8,12 @@
             "type": "shell",
             "command": "${config:python.pythonPath} -m pip install -r ${workspaceFolder}/data/preparation/cognitive/requirements.txt",
             "problemMatcher": []
+        },
+        {
+            "label": "pipInstall PotClassifier",
+            "type": "shell",
+            "command": "${config:python.pythonPath} -m pip install -r ${workspaceFolder}/modules/PotClassifier/app/requirements.txt",
+            "problemMatcher": []
         }
     ]
 }
