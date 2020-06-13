@@ -39,6 +39,10 @@
         "recogniser",
         "uploader"
     ],
+    "azure-iot-edge.platforms": {
+        "amd64": [],
+        "arm32v7": []
+    },
     "azure-iot-edge.defaultPlatform": {
         "platform": "arm32v7",
         "alias": null
