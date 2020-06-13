@@ -28,6 +28,7 @@
         "[Dd]ockerfile*": "dockerfile",
         "docker-compose*": "yaml"
     },
+    "files.insertFinalNewline": true,
     // Spelling.
     "cSpell.words": [
         "CVAT",
@@ -38,4 +39,8 @@
         "recogniser",
         "uploader"
     ],
+    "azure-iot-edge.defaultPlatform": {
+        "platform": "arm32v7",
+        "alias": null
+    },
 }
