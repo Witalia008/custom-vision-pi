@@ -35,11 +35,11 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "PotClassifier Container Local Debug (Python)",
+            "name": "PotClassifier Host Attach Debug (Python)",
             "type": "python",
             "request": "attach",
             "port": 5678,
-            "host": "localhost",
+            "host": "${input:hostName}",
             "logToFile": true,
             "redirectOutput": true,
             "pathMappings": [
@@ -50,22 +50,7 @@
             ]
         },
         {
-            "name": "PotClassifier Container Remote Debug (Python)",
-            "type": "python",
-            "request": "attach",
-            "port": 5678,
-            "host": "${input:remoteHost}",
-            "logToFile": true,
-            "redirectOutput": true,
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/modules/PotClassifier/app",
-                    "remoteRoot": "/app"
-                }
-            ]
-        },
-        {
-            "name": "PotClassifier Local Debug (Python)",
+            "name": "PotClassifier Local Launch Debug (Python)",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/modules/PotClassifier/app/app.py",
@@ -77,11 +62,11 @@
             "preLaunchTask": "pipInstall PotClassifier"
         },
         {
-            "name": "PotDetector Container Local Debug (Python)",
+            "name": "PotDetector Host Attach Debug (Python)",
             "type": "python",
             "request": "attach",
             "port": 5679,
-            "host": "localhost",
+            "host": "${input:hostName}",
             "logToFile": true,
             "redirectOutput": true,
             "pathMappings": [
@@ -92,22 +77,7 @@
             ]
         },
         {
-            "name": "PotDetector Container Remote Debug (Python)",
-            "type": "python",
-            "request": "attach",
-            "port": 5679,
-            "host": "${input:remoteHost}",
-            "logToFile": true,
-            "redirectOutput": true,
-            "pathMappings": [
-                {
-                    "localRoot": "${workspaceFolder}/modules/PotDetector/app",
-                    "remoteRoot": "/app"
-                }
-            ]
-        },
-        {
-            "name": "PotDetector Local Debug (Python)",
+            "name": "PotDetector Local Launch Debug (Python)",
             "type": "python",
             "request": "launch",
             "program": "${workspaceFolder}/modules/PotDetector/app/app.py",
@@ -144,7 +114,7 @@
             "description": "Choose whether this should be object detection or classification"
         },
         {
-            "id": "remoteHost",
+            "id": "hostName",
             "type": "promptString",
             "description": "Enter host name or IP address of the remote host"
         }
